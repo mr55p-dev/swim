@@ -19,7 +19,6 @@ import (
 
 var apiUrl = "https://www.oneleisure.net/umbraco/api/activeintime/TimetableHelperApi"
 var center = flag.String("center", "Huntingdon", "Name of the center")
-var filter = flag.String("filter", "", "Filter by activity name")
 
 func mapFilterToName(filt string) string {
 	switch filt {
@@ -56,20 +55,25 @@ type ApiResponse struct {
 }
 
 func main() {
-	flag.Usage = func() {
-		fmt.Fprintf(os.Stderr, "Usage: %s [options] [duration]\n", os.Args[0])
-		fmt.Fprintf(os.Stderr, "Options:\n")
-		flag.PrintDefaults()
+	http.HandleFunc("GET /swim", HandleRequest)
+	if err := http.ListenAndServe("127.0.0.1:8080", nil); err != nil {
+		fmt.Fprintln(os.Stderr, err)
 	}
-	flag.Parse()
-	duration := strings.Join(flag.Args(), " ")
+}
+
+func HandleRequest(w http.ResponseWriter, r *http.Request) {
+	duration := r.URL.Query().Get("q")
 	if duration == "" {
 		duration = "today"
 	}
+	filter := r.URL.Query().Get("filter")
 	startDate, endDate := parseDate(duration)
-	swims := getSwim(startDate, endDate)
-	renderTable(startDate, swims)
+	swims := getSwim(startDate, endDate, filter)
+	tbl := renderTable(startDate, swims)
+	w.Header().Add("Content-Type", "text/plain")
+	fmt.Fprintf(w, tbl)
 }
+
 func parseDate(duration string) (time.Time, time.Time) {
 	startDate, err := naturaldate.Parse(duration, time.Now(), naturaldate.WithDirection(naturaldate.Future))
 	if err != nil {
@@ -80,7 +84,7 @@ func parseDate(duration string) (time.Time, time.Time) {
 	return startDate, endDate
 }
 
-func getSwim(startDate, endDate time.Time) []SwimDate {
+func getSwim(startDate, endDate time.Time, filter string) []SwimDate {
 	days := endDate.Sub(startDate).Hours() / 24
 	bodyData := &ApiRequest{
 		Name:      *center,
@@ -124,7 +128,7 @@ func getSwim(startDate, endDate time.Time) []SwimDate {
 	swims := apiResponse.SwimmingTimetable
 	laneSwims := []SwimDate{}
 	now := time.Now()
-	filterName := mapFilterToName(*filter)
+	filterName := mapFilterToName(filter)
 
 	for _, swim := range swims {
 		if filterName == "" || swim.Name == filterName {
@@ -143,7 +147,7 @@ func getSwim(startDate, endDate time.Time) []SwimDate {
 	return laneSwims
 }
 
-func renderTable(startDate time.Time, swims []SwimDate) {
+func renderTable(startDate time.Time, swims []SwimDate) string {
 	rows := make([][]string, 0, len(swims))
 	for _, v := range swims {
 		rows = append(rows, []string{
@@ -160,7 +164,7 @@ func renderTable(startDate time.Time, swims []SwimDate) {
 		Headers("Type", "Starts", "Ends").
 		Width(54).
 		Rows(rows...)
-	fmt.Println(t)
+	return t.String()
 }
 
 func parseTime(date, tm string) time.Time {
