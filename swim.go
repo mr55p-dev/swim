@@ -45,6 +45,12 @@ type SwimmingTimetable struct {
 	Duration    string `json:"Duration"`
 }
 
+type SwimDate struct {
+	Name  string    `json:"name"`
+	Start time.Time `json:"start"`
+	End   time.Time `json:"end"`
+}
+
 type ApiResponse struct {
 	SwimmingTimetable []SwimmingTimetable `json:"Swimming Timetable"`
 }
@@ -60,15 +66,22 @@ func main() {
 	if duration == "" {
 		duration = "today"
 	}
-
+	startDate, endDate := parseDate(duration)
+	swims := getSwim(startDate, endDate)
+	renderTable(startDate, swims)
+}
+func parseDate(duration string) (time.Time, time.Time) {
 	startDate, err := naturaldate.Parse(duration, time.Now(), naturaldate.WithDirection(naturaldate.Future))
 	if err != nil {
 		panic(err)
 	}
 	startDate = startDate.Add(time.Hour + time.Second)
 	endDate := startDate.AddDate(0, 0, 1)
-	days := endDate.Sub(startDate).Hours() / 24
+	return startDate, endDate
+}
 
+func getSwim(startDate, endDate time.Time) []SwimDate {
+	days := endDate.Sub(startDate).Hours() / 24
 	bodyData := &ApiRequest{
 		Name:      *center,
 		Timetable: []string{"Swimming Timetable"},
@@ -109,12 +122,7 @@ func main() {
 	}
 
 	swims := apiResponse.SwimmingTimetable
-	if len(swims) == 0 {
-		fmt.Fprintln(os.Stderr, "No swimming timetable found")
-		return
-	}
-
-	laneSwims := [][]string{}
+	laneSwims := []SwimDate{}
 	now := time.Now()
 	filterName := mapFilterToName(*filter)
 
@@ -124,22 +132,35 @@ func main() {
 			if now.After(startTime) {
 				continue
 			}
-			laneSwims = append(laneSwims, []string{
-				swim.Name,
-				startTime.Format("15:04"),
-				endTime.Format("15:04"),
+			laneSwims = append(laneSwims, SwimDate{
+				Name:  swim.Name,
+				Start: startTime,
+				End:   endTime,
 			})
 		}
 	}
+
+	return laneSwims
+}
+
+func renderTable(startDate time.Time, swims []SwimDate) {
+	rows := make([][]string, 0, len(swims))
+	for _, v := range swims {
+		rows = append(rows, []string{
+			v.Name,
+			v.Start.Format("15:04"),
+			v.End.Format("15:04"),
+		})
+	}
+
 	s := lipgloss.NewStyle().Bold(true).MarginLeft(1)
 	fmt.Println(s.Render(fmt.Sprintf("Swimming times for %s", startDate.Format("Monday January 02"))))
 	t := table.New().
 		Border(lipgloss.NormalBorder()).
 		Headers("Type", "Starts", "Ends").
 		Width(54).
-		Rows(laneSwims...)
+		Rows(rows...)
 	fmt.Println(t)
-
 }
 
 func parseTime(date, tm string) time.Time {
