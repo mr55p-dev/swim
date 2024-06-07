@@ -126,7 +126,6 @@ func main() {
 			}
 			laneSwims = append(laneSwims, []string{
 				swim.Name,
-				startTime.Format("02/01 (Mon)"),
 				startTime.Format("15:04"),
 				endTime.Format("15:04"),
 			})
@@ -136,7 +135,7 @@ func main() {
 	fmt.Println(s.Render(fmt.Sprintf("Swimming times for %s", startDate.Format("Monday January 02"))))
 	t := table.New().
 		Border(lipgloss.NormalBorder()).
-		Headers("Type", "Date", "Starts", "Ends").
+		Headers("Type", "Starts", "Ends").
 		Width(54).
 		Rows(laneSwims...)
 	fmt.Println(t)
