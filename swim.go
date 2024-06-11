@@ -3,26 +3,32 @@ package main
 import (
 	"bytes"
 	"encoding/json"
-	"flag"
 	"fmt"
 	"html/template"
 	"io"
 	"math"
 	"net/http"
 	"os"
+	"path/filepath"
 	"strings"
 	"time"
 
 	"github.com/charmbracelet/lipgloss"
 	"github.com/charmbracelet/lipgloss/table"
+	"github.com/mr55p-dev/gonk"
 	"github.com/tj/go-naturaldate"
 )
 
 var apiUrl = "https://www.oneleisure.net/umbraco/api/activeintime/TimetableHelperApi"
-var center = flag.String("center", "Huntingdon", "Name of the center")
+var templates = make(map[string]*template.Template)
+var cfg *Config
 
-var rootTemplate = template.Must(template.ParseFiles("./templates/template.html"))
-var resultTemplate = template.Must(template.ParseFiles("./templates/result.html"))
+type Config struct {
+	Port         int    `config:"port"`
+	Host         string `config:"host,optional"`
+	TemplateBase string `config:"template,optional"`
+	Center       string `config:"center,optional"`
+}
 
 type ResTemplateData struct {
 	Stamp   time.Time
@@ -64,19 +70,36 @@ type ApiResponse struct {
 }
 
 func main() {
+	cfg = &Config{
+		Host:         "127.0.0.1",
+		TemplateBase: "./templates",
+		Center:       "Huntingdon",
+	}
+	err := gonk.LoadConfig(cfg, gonk.EnvLoader(""))
+	if err != nil {
+		panic(err)
+	}
+
+	templates["index"] = template.Must(template.ParseFiles(
+		filepath.Join(cfg.TemplateBase, "template.html"),
+	))
+	templates["result"] = template.Must(template.ParseFiles(
+		filepath.Join(cfg.TemplateBase, "result.html"),
+	))
+
 	http.HandleFunc("GET /", HandleIndex)
 	http.HandleFunc("POST /swim", HandleSwim)
 	http.Handle("GET /assets/", http.StripPrefix("/assets/", http.FileServer(http.Dir("./public"))))
 
-	fmt.Println("Starting server")
-	if err := http.ListenAndServe("127.0.0.1:8080", nil); err != nil {
+	conn := fmt.Sprintf("%s:%d", cfg.Host, cfg.Port)
+	fmt.Println("Starting server on", conn)
+	if err := http.ListenAndServe(conn, nil); err != nil {
 		fmt.Fprintln(os.Stderr, err)
 	}
 }
 
 func HandleIndex(w http.ResponseWriter, r *http.Request) {
-	fmt.Println("req")
-	_ = rootTemplate.Execute(w, nil)
+	_ = templates["index"].Execute(w, nil)
 	return
 }
 
@@ -92,7 +115,7 @@ func HandleSwim(w http.ResponseWriter, r *http.Request) {
 	filter := r.Form.Get("filter")
 	startDate, endDate := parseDate(duration)
 	swims := getSwim(startDate, endDate, filter)
-	err = resultTemplate.Execute(w, ResTemplateData{
+	err = templates["result"].Execute(w, ResTemplateData{
 		Stamp:   startDate,
 		Results: swims,
 	})
@@ -136,7 +159,7 @@ func getSwimMock(time.Time, time.Time, string) []SwimDate {
 func getSwim(startDate, endDate time.Time, filter string) []SwimDate {
 	days := endDate.Sub(startDate).Hours() / 24
 	bodyData := &ApiRequest{
-		Name:      *center,
+		Name:      cfg.Center,
 		Timetable: []string{"Swimming Timetable"},
 		FromDate:  startDate.UTC().Format(time.RFC3339),
 		Days:      int(math.Ceil(days)),

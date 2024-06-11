@@ -1,0 +1,25 @@
+---
+version: "3"
+services:
+  swimming:
+    restart: always
+    image: swim:latest
+    environment:
+      PORT: 80
+      HOST: 0.0.0.0
+      TEMPLATES: /app/templates/
+      CENTER: Huntingdon
+    expose:
+      - 80
+    networks:
+      - traefik
+    labels:
+      traefik.enable: true
+      traefik.http.routers.swim.rule: Host(`swim.pagemail.io`)
+      traefik.http.routers.swim.entrypoints: websecure
+      traefik.http.routers.swim.tls.certresolver: letsencrypt
+
+networks:
+  traefik:
+    name: traefik_proxy
+    external: true
