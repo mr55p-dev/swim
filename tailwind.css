@@ -1,0 +1,13 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+.waved {
+  width: 100%;
+  aspect-ratio: 900/250;
+  background-image: url("/assets/svg/wave.svg");
+  background-repeat: no-repeat;
+  background-size: cover;
+  background-color: white;
+  background-position: bottom center;
+}

@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"flag"
 	"fmt"
+	"html/template"
 	"io"
 	"math"
 	"net/http"
@@ -19,6 +20,14 @@ import (
 
 var apiUrl = "https://www.oneleisure.net/umbraco/api/activeintime/TimetableHelperApi"
 var center = flag.String("center", "Huntingdon", "Name of the center")
+
+var rootTemplate = template.Must(template.ParseFiles("./templates/template.html"))
+var resultTemplate = template.Must(template.ParseFiles("./templates/result.html"))
+
+type ResTemplateData struct {
+	Stamp   time.Time
+	Results []SwimDate
+}
 
 func mapFilterToName(filt string) string {
 	switch filt {
@@ -55,23 +64,43 @@ type ApiResponse struct {
 }
 
 func main() {
-	http.HandleFunc("GET /swim", HandleRequest)
+	http.HandleFunc("GET /", HandleIndex)
+	http.HandleFunc("POST /swim", HandleSwim)
+	http.Handle("GET /assets/", http.StripPrefix("/assets/", http.FileServer(http.Dir("./public"))))
+
+	fmt.Println("Starting server")
 	if err := http.ListenAndServe("127.0.0.1:8080", nil); err != nil {
 		fmt.Fprintln(os.Stderr, err)
 	}
 }
 
-func HandleRequest(w http.ResponseWriter, r *http.Request) {
-	duration := r.URL.Query().Get("q")
+func HandleIndex(w http.ResponseWriter, r *http.Request) {
+	fmt.Println("req")
+	_ = rootTemplate.Execute(w, nil)
+	return
+}
+
+func HandleSwim(w http.ResponseWriter, r *http.Request) {
+	err := r.ParseForm()
+	if err != nil {
+		http.Error(w, "Failed to parse request", http.StatusBadRequest)
+	}
+	duration := r.Form.Get("query")
 	if duration == "" {
 		duration = "today"
 	}
-	filter := r.URL.Query().Get("filter")
+	filter := r.Form.Get("filter")
 	startDate, endDate := parseDate(duration)
 	swims := getSwim(startDate, endDate, filter)
-	tbl := renderTable(startDate, swims)
-	w.Header().Add("Content-Type", "text/plain")
-	fmt.Fprintf(w, tbl)
+	err = resultTemplate.Execute(w, ResTemplateData{
+		Stamp:   startDate,
+		Results: swims,
+	})
+	if err != nil {
+		http.Error(w, err.Error(), http.StatusInternalServerError)
+		return
+	}
+	return
 }
 
 func parseDate(duration string) (time.Time, time.Time) {
@@ -82,6 +111,26 @@ func parseDate(duration string) (time.Time, time.Time) {
 	startDate = startDate.Add(time.Hour + time.Second)
 	endDate := startDate.AddDate(0, 0, 1)
 	return startDate, endDate
+}
+
+func getSwimMock(time.Time, time.Time, string) []SwimDate {
+	return []SwimDate{
+		{
+			Name:  "Lane swim",
+			Start: time.Time{},
+			End:   time.Time{},
+		},
+		{
+			Name:  "Not lane swim",
+			Start: time.Time{},
+			End:   time.Time{},
+		},
+		{
+			Name:  "Another swim",
+			Start: time.Time{},
+			End:   time.Time{},
+		},
+	}
 }
 
 func getSwim(startDate, endDate time.Time, filter string) []SwimDate {

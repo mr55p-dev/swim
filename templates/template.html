@@ -1,0 +1,58 @@
+<html>
+  <head>
+    <title>Swimming timetable</title>
+    <link rel="stylesheet" type="text/css" href="/assets/css/main.css" />
+  </head>
+  <body class="bg-blue-950 min-h-screen">
+    <header class="bg-white min-w-full p-4">
+      <h1 class="text-blue-950 text-center font-bold font-sans text-4xl p-4">
+        Swimming timetable
+      </h1>
+    </header>
+    <main>
+      <div class="bg-white">
+        <div
+          class="bg-white border-gray-200 rounded-md p-4 shadow-gray-300 md:max-w-screen-sm md:border md:shadow-md md:mx-auto"
+        >
+          <form
+            hx-post="/swim"
+            class="flex flex-col gap-2"
+            hx-disabled-elt="input, button, select"
+          >
+            <label for="form-query" class="hidden">Query </label>
+            <input
+              type="text"
+              id="form-query"
+              name="query"
+              placeholder="Query"
+              value=""
+              class="border-gray-200 rounded-md border p-2"
+            />
+            <label for="form-filter" class="hidden">Filter by</label>
+            <select
+              id="form-filter"
+              name="filter"
+              class="border-gray-200 rounded-md border p-2"
+            >
+              <option value="">Filter results</option>
+              <option value="lane">Lane swim</option>
+            </select>
+            <button
+              role="submit"
+              class="p-4 bg-blue-500 text-white w-48 mx-auto rounded-md disabled:bg-blue-700 disabled:cursor-not-allowed"
+            >
+              Submit
+            </button>
+          </form>
+        </div>
+      </div>
+      <div class="waved"></div>
+    </main>
+
+    <script
+      src="https://unpkg.com/htmx.org@1.9.12"
+      integrity="sha384-ujb1lZYygJmzgSwoxRggbCHcjc0rB2XoQrxeTUQyRjrOnlCoYta87iKBWq3EsdM2"
+      crossorigin="anonymous"
+    ></script>
+  </body>
+</html>

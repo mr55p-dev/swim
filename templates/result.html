@@ -1,0 +1,21 @@
+<h4 class="text-lg text-center">
+  Results for {{ .Stamp.Format "Monday, 2 January" }}.
+</h4>
+<table class="table-auto border border-blue-200 border-collapse rounded-md">
+  <thead>
+    <tr>
+      <th class="text-left border border-blue-200 bg-blue-100 p-2">Name</th>
+      <th class="text-left border border-blue-200 bg-blue-100 p-2">Start</th>
+      <th class="text-left border border-blue-200 bg-blue-100 p-2">End</th>
+    </tr>
+  </thead>
+  <tbody>
+    {{ range .Results }}
+    <tr class="hover:bg-blue-50 even:bg-blue-50">
+      <td class="border border-blue-200 p-2">{{ .Name }}</td>
+      <td class="border border-blue-200 p-2">{{ .Start.Format "15:04" }}</td>
+      <td class="border border-blue-200 p-2">{{ .End.Format "15:04" }}</td>
+    </tr>
+    {{ end }}
+  </tbody>
+</table>
